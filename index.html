@@ -1,12 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Twelve Angry Men</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Twelve Angry Men</title>
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --paper: #fffdf8;
+    --ink: #24211d;
+    --muted: #777169;
+    --line: #d9d3ca;
+    --accent: #8b2e2e;
+    --chip: #e8e3da;
+    --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  button { font: inherit; }
+  .top {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(244,241,234,.96);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top-inner, main {
+    width: min(100%, 760px);
+    margin: auto;
+  }
+  .title-row {
+    min-height: 54px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px 6px;
+  }
+  h1 {
+    font-size: 18px;
+    letter-spacing: .08em;
+    margin: 0;
+    flex: 1;
+  }
+  .back {
+    display: none;
+    border: 0;
+    background: transparent;
+    padding: 6px 4px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .back.show { display: block; }
+  .chips {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 4px 14px 10px;
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip {
+    flex: 0 0 auto;
+    border: 1px solid var(--line);
+    background: var(--chip);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 7px 10px;
+    min-width: 38px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .chip.active {
+    background: var(--ink);
+    color: white;
+    border-color: var(--ink);
+  }
+  main { padding: 14px; }
+  .beat-card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 12px;
+    padding: 14px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    transition: opacity .15s ease, transform .15s ease;
+  }
+  .beat-card:active { transform: scale(.995); }
+  .beat-card.dimmed { opacity: .28; }
+  .beat-number {
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+  .beat-title {
+    margin: 0 0 6px;
+    font-size: 19px;
+    line-height: 1.18;
+  }
+  .beat-summary {
+    margin: 0 0 12px;
+    color: #504b45;
+    font-size: 14px;
+    line-height: 1.42;
+  }
+  .participation {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 3px;
+  }
+  .part {
+    position: relative;
+    height: 30px;
+    border-radius: 5px;
+    background: #ebe7e0;
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    color: #aaa39a;
+    font-size: 10px;
+    font-weight: 800;
+  }
+  .part .fill {
+    position: absolute;
+    inset: auto 0 0;
+    background: var(--accent);
+    opacity: .18;
+  }
+  .part.present { color: var(--ink); }
+  .part.selected {
+    outline: 2px solid var(--ink);
+    outline-offset: -2px;
+  }
+  .part span { position: relative; z-index: 1; }
+  .script-head {
+    padding: 4px 2px 14px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 10px;
+  }
+  .script-head h2 { margin: 0 0 6px; font-size: 23px; }
+  .script-head p { margin: 0; color: var(--muted); line-height: 1.4; }
+  .speech {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--line);
+    border-radius: 8px;
+  }
+  .speech.mine {
+    background: #f1e1df;
+  }
+  .speaker {
+    font-size: 11px;
+    font-weight: 850;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+  .speech-text {
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.48;
+  }
+  .status {
+    padding: 30px 14px;
+    text-align: center;
+    color: var(--muted);
+  }
+  @media (min-width: 700px) {
+    main { padding-top: 20px; }
+    .beat-card { padding: 18px; }
+    .beat-title { font-size: 21px; }
+    .beat-summary { font-size: 15px; }
+  }
+</style>
 </head>
 <body>
-  <h1>Twelve Angry Men</h1>
-  <p>Hello World</p>
+<header class="top">
+  <div class="top-inner">
+    <div class="title-row">
+      <button id="back" class="back" aria-label="Back to beats">←</button>
+      <h1>TWELVE ANGRY MEN</h1>
+    </div>
+    <nav id="chips" class="chips" aria-label="Character selection"></nav>
+  </div>
+</header>
+
+<main id="app"><div class="status">Loading play…</div></main>
+
+<script>
+const app = document.getElementById('app');
+const chips = document.getElementById('chips');
+const back = document.getElementById('back');
+
+let data;
+let selected = 'ALL';
+let currentBeat = null;
+
+const jurors = [
+  ['Foreman','F'], ['2nd Juror','2'], ['3rd Juror','3'], ['4th Juror','4'],
+  ['5th Juror','5'], ['6th Juror','6'], ['7th Juror','7'], ['8th Juror','8'],
+  ['9th Juror','9'], ['10th Juror','10'], ['11th Juror','11'], ['12th Juror','12']
+];
+
+function escapeHTML(value) {
+  return String(value).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
+  })[c]);
+}
+
+function renderChips() {
+  const choices = [['ALL','ALL'], ...jurors.map(([name,label]) => [name, name === 'Foreman' ? 'F' : 'J'+label])];
+  chips.innerHTML = choices.map(([name,label]) =>
+    `<button class="chip ${selected === name ? 'active' : ''}" data-name="${name}">${label}</button>`
+  ).join('');
+  chips.querySelectorAll('.chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      selected = btn.dataset.name;
+      renderChips();
+      currentBeat ? renderScript(currentBeat) : renderBeats();
+    });
+  });
+}
+
+function speechesForBeat(id) {
+  return data.script.filter(s => s.beat === id);
+}
+
+function countsForBeat(id) {
+  const counts = Object.fromEntries(jurors.map(([name]) => [name, 0]));
+  for (const s of speechesForBeat(id)) {
+    if (s.speaker in counts) counts[s.speaker]++;
+  }
+  return counts;
+}
+
+function renderParticipation(beatId) {
+  const counts = countsForBeat(beatId);
+  const max = Math.max(1, ...Object.values(counts));
+  return `<div class="participation">${
+    jurors.map(([name,label]) => {
+      const count = counts[name];
+      const height = count ? Math.max(18, Math.round((count / max) * 100)) : 0;
+      const classes = ['part', count ? 'present' : '', selected === name ? 'selected' : ''].filter(Boolean).join(' ');
+      return `<div class="${classes}" title="${escapeHTML(name)}: ${count} speeches">
+        <div class="fill" style="height:${height}%"></div><span>${label}</span>
+      </div>`;
+    }).join('')
+  }</div>`;
+}
+
+function renderBeats() {
+  currentBeat = null;
+  back.classList.remove('show');
+
+  app.innerHTML = data.beats.map(beat => {
+    const counts = countsForBeat(beat.id);
+    const dimmed = selected !== 'ALL' && !counts[selected];
+    return `<article class="beat-card ${dimmed ? 'dimmed' : ''}" data-beat="${beat.id}">
+      <div class="beat-number">Beat ${beat.id}</div>
+      <h2 class="beat-title">${escapeHTML(beat.title)}</h2>
+      <p class="beat-summary">${escapeHTML(beat.summary)}</p>
+      ${renderParticipation(beat.id)}
+    </article>`;
+  }).join('');
+
+  app.querySelectorAll('.beat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const id = Number(card.dataset.beat);
+      renderScript(id);
+      window.scrollTo(0, 0);
+    });
+  });
+}
+
+function renderScript(beatId) {
+  currentBeat = beatId;
+  back.classList.add('show');
+  const beat = data.beats.find(b => b.id === beatId);
+  const speeches = speechesForBeat(beatId);
+
+  app.innerHTML = `
+    <section class="script-head">
+      <div class="beat-number">Beat ${beat.id}</div>
+      <h2>${escapeHTML(beat.title)}</h2>
+      <p>${escapeHTML(beat.summary)}</p>
+    </section>
+    <section>
+      ${speeches.map(s => `
+        <article class="speech ${selected !== 'ALL' && s.speaker === selected ? 'mine' : ''}">
+          <div class="speaker">${escapeHTML(s.speaker)}</div>
+          <div class="speech-text">${escapeHTML(s.text)}</div>
+        </article>
+      `).join('')}
+    </section>`;
+}
+
+back.addEventListener('click', () => {
+  renderBeats();
+  window.scrollTo(0, 0);
+});
+
+fetch('data.json')
+  .then(r => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
+  .then(json => {
+    data = json;
+    renderChips();
+    renderBeats();
+  })
+  .catch(err => {
+    console.error(err);
+    app.innerHTML = `<div class="status">Couldn't load data.json.</div>`;
+  });
+</script>
 </body>
 </html>
