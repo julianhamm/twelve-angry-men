@@ -273,21 +273,74 @@
     color: white;
   }
 
-  .step-shell {
-    min-height: calc(100vh - 150px);
-    display: flex;
-    flex-direction: column;
+  body.step-active {
+    overflow: hidden;
   }
 
-  .step-speech {
-    flex: 1;
+  body.step-active main {
+    height: calc(100vh - var(--top-height, 110px));
+    padding-top: 10px;
+    padding-bottom: 10px;
+    overflow: hidden;
+  }
+
+  .step-view {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .step-bar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 2px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .step-bar .view-mode {
+    margin: 0;
+    flex: 0 0 auto;
+  }
+
+  .step-meta {
+    min-width: 0;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .step-meta strong {
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .step-speech-area {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-top: 12px;
+  }
+
+  .step-speech-area .speech {
+    border-bottom: 0;
   }
 
   .step-controls {
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 10px;
-    margin: 18px 0 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
   }
 
   .step-button {
@@ -295,14 +348,20 @@
     background: var(--paper);
     color: var(--ink);
     border-radius: 10px;
-    padding: 11px 12px;
+    padding: 10px 12px;
     font-size: 12px;
     font-weight: 750;
     cursor: pointer;
   }
 
-  .step-button.next { text-align: right; }
-  .step-button:disabled { opacity: .35; cursor: default; }
+  .step-button.next {
+    text-align: right;
+  }
+
+  .step-button:disabled {
+    opacity: .35;
+    cursor: default;
+  }
 
   .beat-nav {
     display: grid;
@@ -655,6 +714,7 @@ function renderBeats() {
 
   currentBeat = null;
   currentSpeech = null;
+  document.body.classList.remove('step-active');
 
   back.classList.remove('show');
 
@@ -714,6 +774,16 @@ function renderBeats() {
 
 }
 
+function updateTopHeight() {
+  const top = document.querySelector('.top');
+  if (top) {
+    document.documentElement.style.setProperty(
+      '--top-height',
+      `${Math.ceil(top.getBoundingClientRect().height)}px`
+    );
+  }
+}
+
 function renderModeControl() {
   return `
     <div class="view-mode" aria-label="Script navigation mode">
@@ -770,6 +840,7 @@ function setScriptMode(mode) {
 
   const speechId = currentSpeech;
   scriptMode = 'flow';
+  document.body.classList.remove('step-active');
   const speech = speechById(speechId);
   renderScript(speech ? speech.beat : currentBeat, speechId);
 }
@@ -781,39 +852,58 @@ function renderStepSpeech(speechId) {
   currentSpeech = speech.id;
   currentBeat = speech.beat;
   back.classList.add('show');
+  document.body.classList.add('step-active');
 
   const beat = data.beats.find(beat => beat.id === currentBeat);
   const previous = speechById(speech.id - 1);
   const next = speechById(speech.id + 1);
 
-  app.innerHTML = `
-    <section class="script-head">
-      ${renderModeControl()}
-      <div class="beat-number">Beat ${beat.id}</div>
-      <div class="beat-meta">${beatMeta(beat)}</div>
-      <h2>${escapeHTML(beat.title)}</h2>
-      <p>${escapeHTML(beat.summary)}</p>
-    </section>
+  const pages =
+    beat.start_page === beat.end_page
+      ? `p.${beat.start_page}`
+      : `pp.${beat.start_page}–${beat.end_page}`;
 
-    <section class="step-shell">
-      <div class="step-speech">${renderSpeech(speech)}</div>
+  app.innerHTML = `
+    <section class="step-view">
+
+      <div class="step-bar">
+        ${renderModeControl()}
+        <div class="step-meta">
+          <strong>Beat ${beat.id}</strong>
+          · ${escapeHTML(beat.title)}
+          · ${pages}
+        </div>
+      </div>
+
+      <div class="step-speech-area" id="stepSpeechArea">
+        ${renderSpeech(speech)}
+      </div>
+
       <nav class="step-controls" aria-label="Speech navigation">
-        <button class="step-button" id="stepPrevious" ${previous ? '' : 'disabled'}>← Previous</button>
-        <button class="step-button next" id="stepNext" ${next ? '' : 'disabled'}>Next →</button>
+        <button class="step-button" id="stepPrevious" ${previous ? '' : 'disabled'}>
+          ← Previous
+        </button>
+        <button class="step-button next" id="stepNext" ${next ? '' : 'disabled'}>
+          Next →
+        </button>
       </nav>
+
     </section>
   `;
 
   wireModeButtons();
 
   if (previous) {
-    document.getElementById('stepPrevious').addEventListener('click', () => renderStepSpeech(previous.id));
-  }
-  if (next) {
-    document.getElementById('stepNext').addEventListener('click', () => renderStepSpeech(next.id));
+    document.getElementById('stepPrevious')
+      .addEventListener('click', () => renderStepSpeech(previous.id));
   }
 
-  window.scrollTo(0, 0);
+  if (next) {
+    document.getElementById('stepNext')
+      .addEventListener('click', () => renderStepSpeech(next.id));
+  }
+
+  updateTopHeight();
 }
 
 function renderBeatNavigation(beatId) {
@@ -931,41 +1021,101 @@ document.addEventListener('keydown', event => {
 });
 
 let touchStartY = null;
+let wheelLocked = false;
+let wheelAccumulator = 0;
+
+function moveStep(direction) {
+  if (scriptMode !== 'step' || !currentSpeech) return;
+
+  const target = speechById(currentSpeech + direction);
+  if (target) renderStepSpeech(target.id);
+}
+
+function stepAreaCanScroll(direction) {
+  const area = document.getElementById('stepSpeechArea');
+  if (!area) return false;
+
+  const tolerance = 2;
+
+  if (direction > 0) {
+    return area.scrollTop + area.clientHeight < area.scrollHeight - tolerance;
+  }
+
+  return area.scrollTop > tolerance;
+}
 
 app.addEventListener('touchstart', event => {
-  if (scriptMode === 'step') touchStartY = event.changedTouches[0].clientY;
+  if (scriptMode === 'step') {
+    touchStartY = event.changedTouches[0].clientY;
+  }
 }, { passive: true });
 
 app.addEventListener('touchend', event => {
   if (scriptMode !== 'step' || touchStartY === null || !currentSpeech) return;
+
   const delta = event.changedTouches[0].clientY - touchStartY;
   touchStartY = null;
+
   if (Math.abs(delta) < 45) return;
 
-  const target = speechById(currentSpeech + (delta < 0 ? 1 : -1));
-  if (target) renderStepSpeech(target.id);
+  const direction = delta < 0 ? 1 : -1;
+
+  if (!stepAreaCanScroll(direction)) {
+    moveStep(direction);
+  }
 }, { passive: true });
+
+app.addEventListener('wheel', event => {
+  if (scriptMode !== 'step' || !currentSpeech) return;
+
+  const direction = event.deltaY > 0 ? 1 : -1;
+
+  if (stepAreaCanScroll(direction)) {
+    return;
+  }
+
+  event.preventDefault();
+
+  if (wheelLocked) return;
+
+  wheelAccumulator += event.deltaY;
+
+  if (Math.abs(wheelAccumulator) < 20) return;
+
+  wheelLocked = true;
+  wheelAccumulator = 0;
+  moveStep(direction);
+
+  setTimeout(() => {
+    wheelLocked = false;
+  }, 280);
+}, { passive: false });
 
 document.addEventListener('keydown', event => {
   if (scriptMode !== 'step' || !currentSpeech) return;
 
+  let direction = 0;
+
   if (['ArrowDown','ArrowRight','PageDown',' '].includes(event.key)) {
-    const next = speechById(currentSpeech + 1);
-    if (next) {
-      event.preventDefault();
-      renderStepSpeech(next.id);
-    }
+    direction = 1;
   } else if (['ArrowUp','ArrowLeft','PageUp'].includes(event.key)) {
-    const previous = speechById(currentSpeech - 1);
-    if (previous) {
-      event.preventDefault();
-      renderStepSpeech(previous.id);
-    }
+    direction = -1;
   }
+
+  if (!direction) return;
+
+  if (stepAreaCanScroll(direction)) return;
+
+  event.preventDefault();
+  moveStep(direction);
 });
+
+window.addEventListener('resize', updateTopHeight);
 
 back.addEventListener('click', () => {
 
+  document.body.classList.remove('step-active');
+  scriptMode = 'flow';
   renderBeats();
 
   window.scrollTo(0, 0);
@@ -991,6 +1141,7 @@ fetch('data.json')
     data = json;
 
     renderChips();
+    updateTopHeight();
 
     renderBeats();
 
