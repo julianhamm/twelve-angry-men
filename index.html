@@ -273,14 +273,36 @@
     color: white;
   }
 
-  body.step-mode {
-    scroll-snap-type: y proximity;
+  .step-shell {
+    min-height: calc(100vh - 150px);
+    display: flex;
+    flex-direction: column;
   }
 
-  body.step-mode .speech {
-    scroll-snap-align: start;
-    scroll-margin-top: 104px;
+  .step-speech {
+    flex: 1;
   }
+
+  .step-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 18px 0 10px;
+  }
+
+  .step-button {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 11px 12px;
+    font-size: 12px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .step-button.next { text-align: right; }
+  .step-button:disabled { opacity: .35; cursor: default; }
 
   .beat-nav {
     display: grid;
@@ -468,6 +490,7 @@ const modalSummary = document.getElementById('modalSummary');
 let data;
 let selected = 'ALL';
 let currentBeat = null;
+let currentSpeech = null;
 let scriptMode = 'flow';
 
 const jurors = [
@@ -538,9 +561,13 @@ function renderChips() {
 
       renderChips();
 
-      currentBeat
-        ? renderScript(currentBeat)
-        : renderBeats();
+      if (currentBeat) {
+        scriptMode === 'step' && currentSpeech
+          ? renderStepSpeech(currentSpeech)
+          : renderScript(currentBeat);
+      } else {
+        renderBeats();
+      }
 
     });
 
@@ -627,7 +654,7 @@ function renderParticipation(beatId) {
 function renderBeats() {
 
   currentBeat = null;
-  document.body.classList.remove('step-mode');
+  currentSpeech = null;
 
   back.classList.remove('show');
 
@@ -690,67 +717,103 @@ function renderBeats() {
 function renderModeControl() {
   return `
     <div class="view-mode" aria-label="Script navigation mode">
-      <button
-        class="mode-button ${scriptMode === 'flow' ? 'active' : ''}"
-        data-mode="flow">
-        Flow
-      </button>
-      <button
-        class="mode-button ${scriptMode === 'step' ? 'active' : ''}"
-        data-mode="step">
-        Step
-      </button>
+      <button class="mode-button ${scriptMode === 'flow' ? 'active' : ''}" data-mode="flow">Flow</button>
+      <button class="mode-button ${scriptMode === 'step' ? 'active' : ''}" data-mode="step">Step</button>
     </div>
   `;
 }
 
-function currentSpeechId() {
-
+function firstSpeechAtTop() {
   const speeches = [...app.querySelectorAll('.speech[data-speech-id]')];
-
   if (!speeches.length) return null;
 
-  const targetY = 115;
-  let closest = speeches[0];
-  let closestDistance = Infinity;
+  const headerBottom = document.querySelector('.top').getBoundingClientRect().bottom;
+  const visible = speeches.find(speech =>
+    speech.getBoundingClientRect().bottom > headerBottom + 1
+  );
 
-  for (const speech of speeches) {
-    const rect = speech.getBoundingClientRect();
-    const distance = Math.abs(rect.top - targetY);
+  return visible
+    ? Number(visible.dataset.speechId)
+    : Number(speeches[speeches.length - 1].dataset.speechId);
+}
 
-    if (distance < closestDistance) {
-      closest = speech;
-      closestDistance = distance;
-    }
-  }
+function speechById(id) {
+  return data.script.find(speech => speech.id === id);
+}
 
-  return Number(closest.dataset.speechId);
+function renderSpeech(speech) {
+  return `
+    <article data-speech-id="${speech.id}"
+      class="speech ${selected !== 'ALL' && speech.speaker === selected ? 'mine' : ''}">
+      <div class="speaker">${escapeHTML(speech.speaker)}</div>
+      <div class="speech-text">${escapeHTML(speech.text)}</div>
+    </article>
+  `;
+}
+
+function wireModeButtons() {
+  app.querySelectorAll('.mode-button').forEach(button => {
+    button.addEventListener('click', () => setScriptMode(button.dataset.mode));
+  });
 }
 
 function setScriptMode(mode) {
-
   if (!currentBeat || mode === scriptMode) return;
 
-  const speechId = currentSpeechId();
-  scriptMode = mode;
-
-  document.body.classList.toggle('step-mode', scriptMode === 'step');
-
-  app.querySelectorAll('.mode-button').forEach(button => {
-    button.classList.toggle('active', button.dataset.mode === scriptMode);
-  });
-
-  if (speechId !== null) {
-    requestAnimationFrame(() => {
-      const speech = app.querySelector(`[data-speech-id="${speechId}"]`);
-      if (speech) {
-        speech.scrollIntoView({
-          block: 'start',
-          behavior: 'auto'
-        });
-      }
-    });
+  if (mode === 'step') {
+    const speechId = firstSpeechAtTop();
+    if (speechId === null) return;
+    scriptMode = 'step';
+    renderStepSpeech(speechId);
+    return;
   }
+
+  const speechId = currentSpeech;
+  scriptMode = 'flow';
+  const speech = speechById(speechId);
+  renderScript(speech ? speech.beat : currentBeat, speechId);
+}
+
+function renderStepSpeech(speechId) {
+  const speech = speechById(speechId);
+  if (!speech) return;
+
+  currentSpeech = speech.id;
+  currentBeat = speech.beat;
+  back.classList.add('show');
+
+  const beat = data.beats.find(beat => beat.id === currentBeat);
+  const previous = speechById(speech.id - 1);
+  const next = speechById(speech.id + 1);
+
+  app.innerHTML = `
+    <section class="script-head">
+      ${renderModeControl()}
+      <div class="beat-number">Beat ${beat.id}</div>
+      <div class="beat-meta">${beatMeta(beat)}</div>
+      <h2>${escapeHTML(beat.title)}</h2>
+      <p>${escapeHTML(beat.summary)}</p>
+    </section>
+
+    <section class="step-shell">
+      <div class="step-speech">${renderSpeech(speech)}</div>
+      <nav class="step-controls" aria-label="Speech navigation">
+        <button class="step-button" id="stepPrevious" ${previous ? '' : 'disabled'}>← Previous</button>
+        <button class="step-button next" id="stepNext" ${next ? '' : 'disabled'}>Next →</button>
+      </nav>
+    </section>
+  `;
+
+  wireModeButtons();
+
+  if (previous) {
+    document.getElementById('stepPrevious').addEventListener('click', () => renderStepSpeech(previous.id));
+  }
+  if (next) {
+    document.getElementById('stepNext').addEventListener('click', () => renderStepSpeech(next.id));
+  }
+
+  window.scrollTo(0, 0);
 }
 
 function renderBeatNavigation(beatId) {
@@ -806,90 +869,49 @@ function closeCharacterModal() {
   modalBackdrop.setAttribute('aria-hidden', 'true');
 }
 
-function renderScript(beatId) {
+function renderScript(beatId, focusSpeechId = null) {
 
   currentBeat = beatId;
-
   back.classList.add('show');
 
-  const beat =
-    data.beats.find(
-      beat => beat.id === beatId
-    );
-
-  const speeches =
-    speechesForBeat(beatId);
+  const beat = data.beats.find(beat => beat.id === beatId);
+  const speeches = speechesForBeat(beatId);
 
   app.innerHTML = `
-
     <section class="script-head">
-
       ${renderModeControl()}
-
-      <div class="beat-number">
-        Beat ${beat.id}
-      </div>
-
-      <div class="beat-meta">
-        ${beatMeta(beat)}
-      </div>
-
-      <h2>
-        ${escapeHTML(beat.title)}
-      </h2>
-
-      <p>
-        ${escapeHTML(beat.summary)}
-      </p>
-
+      <div class="beat-number">Beat ${beat.id}</div>
+      <div class="beat-meta">${beatMeta(beat)}</div>
+      <h2>${escapeHTML(beat.title)}</h2>
+      <p>${escapeHTML(beat.summary)}</p>
     </section>
 
     <section>
-
-      ${speeches.map(speech => `
-
-        <article
-          data-speech-id="${speech.id}"
-          class="speech ${
-            selected !== 'ALL'
-            && speech.speaker === selected
-              ? 'mine'
-              : ''
-          }">
-
-          <div class="speaker">
-            ${escapeHTML(speech.speaker)}
-          </div>
-
-          <div class="speech-text">
-            ${escapeHTML(speech.text)}
-          </div>
-
-        </article>
-
-      `).join('')}
-
+      ${speeches.map(renderSpeech).join('')}
     </section>
 
     ${renderBeatNavigation(beatId)}
   `;
 
-  document.body.classList.toggle('step-mode', scriptMode === 'step');
+  wireModeButtons();
 
-  app.querySelectorAll('.mode-button')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        setScriptMode(button.dataset.mode);
-      });
+  app.querySelectorAll('.beat-nav-button[data-beat]').forEach(button => {
+    button.addEventListener('click', () => {
+      currentSpeech = null;
+      renderScript(Number(button.dataset.beat));
+      window.scrollTo(0, 0);
     });
+  });
 
-  app.querySelectorAll('.beat-nav-button[data-beat]')
-    .forEach(button => {
-      button.addEventListener('click', () => {
-        renderScript(Number(button.dataset.beat));
-        window.scrollTo(0, 0);
-      });
+  if (focusSpeechId !== null) {
+    requestAnimationFrame(() => {
+      const speech = app.querySelector(`[data-speech-id="${focusSpeechId}"]`);
+      if (speech) {
+        currentSpeech = focusSpeechId;
+        speech.scrollIntoView({ block: 'start', behavior: 'auto' });
+      }
     });
+  }
 }
 
 characterInfo.addEventListener('click', openCharacterModal);
@@ -905,6 +927,40 @@ modalBackdrop.addEventListener('click', event => {
 document.addEventListener('keydown', event => {
   if (event.key === 'Escape') {
     closeCharacterModal();
+  }
+});
+
+let touchStartY = null;
+
+app.addEventListener('touchstart', event => {
+  if (scriptMode === 'step') touchStartY = event.changedTouches[0].clientY;
+}, { passive: true });
+
+app.addEventListener('touchend', event => {
+  if (scriptMode !== 'step' || touchStartY === null || !currentSpeech) return;
+  const delta = event.changedTouches[0].clientY - touchStartY;
+  touchStartY = null;
+  if (Math.abs(delta) < 45) return;
+
+  const target = speechById(currentSpeech + (delta < 0 ? 1 : -1));
+  if (target) renderStepSpeech(target.id);
+}, { passive: true });
+
+document.addEventListener('keydown', event => {
+  if (scriptMode !== 'step' || !currentSpeech) return;
+
+  if (['ArrowDown','ArrowRight','PageDown',' '].includes(event.key)) {
+    const next = speechById(currentSpeech + 1);
+    if (next) {
+      event.preventDefault();
+      renderStepSpeech(next.id);
+    }
+  } else if (['ArrowUp','ArrowLeft','PageUp'].includes(event.key)) {
+    const previous = speechById(currentSpeech - 1);
+    if (previous) {
+      event.preventDefault();
+      renderStepSpeech(previous.id);
+    }
   }
 });
 
