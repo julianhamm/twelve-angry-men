@@ -256,6 +256,14 @@
     background: var(--chip);
   }
 
+  .script-head > .view-mode {
+    position: sticky;
+    top: var(--top-height, 110px);
+    z-index: 15;
+    margin: -4px 0 14px;
+    box-shadow: 0 4px 8px var(--bg);
+  }
+
   .mode-button {
     border: 0;
     background: transparent;
@@ -301,8 +309,10 @@
   }
 
   .step-bar .view-mode {
+    position: static;
     margin: 0;
     flex: 0 0 auto;
+    box-shadow: none;
   }
 
   .step-meta {
