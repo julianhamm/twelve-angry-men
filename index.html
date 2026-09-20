@@ -246,6 +246,42 @@
     line-height: 1.48;
   }
 
+  .view-mode {
+    display: flex;
+    width: fit-content;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 0 0 14px;
+    background: var(--chip);
+  }
+
+  .mode-button {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    padding: 6px 12px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+
+  .mode-button.active {
+    background: var(--ink);
+    color: white;
+  }
+
+  body.step-mode {
+    scroll-snap-type: y proximity;
+  }
+
+  body.step-mode .speech {
+    scroll-snap-align: start;
+    scroll-margin-top: 104px;
+  }
+
   .beat-nav {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -432,6 +468,7 @@ const modalSummary = document.getElementById('modalSummary');
 let data;
 let selected = 'ALL';
 let currentBeat = null;
+let scriptMode = 'flow';
 
 const jurors = [
   ['Foreman','F'],
@@ -590,6 +627,7 @@ function renderParticipation(beatId) {
 function renderBeats() {
 
   currentBeat = null;
+  document.body.classList.remove('step-mode');
 
   back.classList.remove('show');
 
@@ -647,6 +685,72 @@ function renderBeats() {
 
     });
 
+}
+
+function renderModeControl() {
+  return `
+    <div class="view-mode" aria-label="Script navigation mode">
+      <button
+        class="mode-button ${scriptMode === 'flow' ? 'active' : ''}"
+        data-mode="flow">
+        Flow
+      </button>
+      <button
+        class="mode-button ${scriptMode === 'step' ? 'active' : ''}"
+        data-mode="step">
+        Step
+      </button>
+    </div>
+  `;
+}
+
+function currentSpeechId() {
+
+  const speeches = [...app.querySelectorAll('.speech[data-speech-id]')];
+
+  if (!speeches.length) return null;
+
+  const targetY = 115;
+  let closest = speeches[0];
+  let closestDistance = Infinity;
+
+  for (const speech of speeches) {
+    const rect = speech.getBoundingClientRect();
+    const distance = Math.abs(rect.top - targetY);
+
+    if (distance < closestDistance) {
+      closest = speech;
+      closestDistance = distance;
+    }
+  }
+
+  return Number(closest.dataset.speechId);
+}
+
+function setScriptMode(mode) {
+
+  if (!currentBeat || mode === scriptMode) return;
+
+  const speechId = currentSpeechId();
+  scriptMode = mode;
+
+  document.body.classList.toggle('step-mode', scriptMode === 'step');
+
+  app.querySelectorAll('.mode-button').forEach(button => {
+    button.classList.toggle('active', button.dataset.mode === scriptMode);
+  });
+
+  if (speechId !== null) {
+    requestAnimationFrame(() => {
+      const speech = app.querySelector(`[data-speech-id="${speechId}"]`);
+      if (speech) {
+        speech.scrollIntoView({
+          block: 'start',
+          behavior: 'auto'
+        });
+      }
+    });
+  }
 }
 
 function renderBeatNavigation(beatId) {
@@ -720,6 +824,8 @@ function renderScript(beatId) {
 
     <section class="script-head">
 
+      ${renderModeControl()}
+
       <div class="beat-number">
         Beat ${beat.id}
       </div>
@@ -743,6 +849,7 @@ function renderScript(beatId) {
       ${speeches.map(speech => `
 
         <article
+          data-speech-id="${speech.id}"
           class="speech ${
             selected !== 'ALL'
             && speech.speaker === selected
@@ -766,6 +873,15 @@ function renderScript(beatId) {
 
     ${renderBeatNavigation(beatId)}
   `;
+
+  document.body.classList.toggle('step-mode', scriptMode === 'step');
+
+  app.querySelectorAll('.mode-button')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        setScriptMode(button.dataset.mode);
+      });
+    });
 
   app.querySelectorAll('.beat-nav-button[data-beat]')
     .forEach(button => {
