@@ -246,6 +246,122 @@
     line-height: 1.48;
   }
 
+  .beat-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 24px 0 10px;
+  }
+
+  .beat-nav-button {
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 10px;
+    padding: 12px;
+    cursor: pointer;
+    text-align: left;
+    box-shadow: var(--shadow);
+  }
+
+  .beat-nav-button.next {
+    text-align: right;
+  }
+
+  .beat-nav-button.empty {
+    visibility: hidden;
+  }
+
+  .beat-nav-direction {
+    display: block;
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .beat-nav-title {
+    display: block;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.25;
+  }
+
+  .character-info {
+    flex: 0 0 auto;
+    display: none;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--line);
+    border-radius: 50%;
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 800;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .character-info.show {
+    display: inline-flex;
+  }
+
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0,0,0,.42);
+    padding: 16px;
+  }
+
+  .modal-backdrop.show {
+    display: flex;
+  }
+
+  .modal {
+    width: min(100%, 560px);
+    background: var(--paper);
+    border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.22);
+    padding: 18px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .modal-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .modal h2 {
+    margin: 0;
+    flex: 1;
+    font-size: 22px;
+  }
+
+  .modal p {
+    margin: 12px 0 0;
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+
+  .modal-close {
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 26px;
+    line-height: 1;
+    padding: 0 2px;
+    cursor: pointer;
+  }
+
   .status {
     padding: 30px 14px;
     text-align: center;
@@ -280,6 +396,7 @@
     <div class="title-row">
       <button id="back" class="back" aria-label="Back to beats">←</button>
       <h1>TWELVE ANGRY MEN</h1>
+      <button id="characterInfo" class="character-info" aria-label="Character information">ⓘ</button>
     </div>
 
     <nav id="chips" class="chips" aria-label="Character selection"></nav>
@@ -291,11 +408,26 @@
   <div class="status">Loading play…</div>
 </main>
 
+<div id="modalBackdrop" class="modal-backdrop" aria-hidden="true">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-top">
+      <h2 id="modalTitle"></h2>
+      <button id="modalClose" class="modal-close" aria-label="Close">×</button>
+    </div>
+    <p id="modalSummary"></p>
+  </section>
+</div>
+
 <script>
 
 const app = document.getElementById('app');
 const chips = document.getElementById('chips');
 const back = document.getElementById('back');
+const characterInfo = document.getElementById('characterInfo');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const modalClose = document.getElementById('modalClose');
+const modalTitle = document.getElementById('modalTitle');
+const modalSummary = document.getElementById('modalSummary');
 
 let data;
 let selected = 'ALL';
@@ -358,6 +490,8 @@ function renderChips() {
       ${label}
     </button>`
   ).join('');
+
+  characterInfo.classList.toggle('show', selected !== 'ALL');
 
   chips.querySelectorAll('.chip').forEach(btn => {
 
@@ -515,6 +649,59 @@ function renderBeats() {
 
 }
 
+function renderBeatNavigation(beatId) {
+
+  const index = data.beats.findIndex(beat => beat.id === beatId);
+  const previous = index > 0 ? data.beats[index - 1] : null;
+  const next = index < data.beats.length - 1 ? data.beats[index + 1] : null;
+
+  const previousButton = previous
+    ? `
+      <button class="beat-nav-button" data-beat="${previous.id}">
+        <span class="beat-nav-direction">← Previous beat</span>
+        <span class="beat-nav-title">${escapeHTML(previous.title)}</span>
+      </button>
+    `
+    : `<div class="beat-nav-button empty" aria-hidden="true"></div>`;
+
+  const nextButton = next
+    ? `
+      <button class="beat-nav-button next" data-beat="${next.id}">
+        <span class="beat-nav-direction">Next beat →</span>
+        <span class="beat-nav-title">${escapeHTML(next.title)}</span>
+      </button>
+    `
+    : `<div class="beat-nav-button empty" aria-hidden="true"></div>`;
+
+  return `
+    <nav class="beat-nav" aria-label="Beat navigation">
+      ${previousButton}
+      ${nextButton}
+    </nav>
+  `;
+}
+
+function openCharacterModal() {
+
+  if (selected === 'ALL') return;
+
+  const character = data.characters.find(
+    character => character.name === selected
+  );
+
+  if (!character) return;
+
+  modalTitle.textContent = character.name;
+  modalSummary.textContent = character.summary;
+  modalBackdrop.classList.add('show');
+  modalBackdrop.setAttribute('aria-hidden', 'false');
+}
+
+function closeCharacterModal() {
+  modalBackdrop.classList.remove('show');
+  modalBackdrop.setAttribute('aria-hidden', 'true');
+}
+
 function renderScript(beatId) {
 
   currentBeat = beatId;
@@ -576,8 +763,34 @@ function renderScript(beatId) {
       `).join('')}
 
     </section>
+
+    ${renderBeatNavigation(beatId)}
   `;
+
+  app.querySelectorAll('.beat-nav-button[data-beat]')
+    .forEach(button => {
+      button.addEventListener('click', () => {
+        renderScript(Number(button.dataset.beat));
+        window.scrollTo(0, 0);
+      });
+    });
 }
+
+characterInfo.addEventListener('click', openCharacterModal);
+
+modalClose.addEventListener('click', closeCharacterModal);
+
+modalBackdrop.addEventListener('click', event => {
+  if (event.target === modalBackdrop) {
+    closeCharacterModal();
+  }
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeCharacterModal();
+  }
+});
 
 back.addEventListener('click', () => {
 
