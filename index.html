@@ -869,8 +869,17 @@ function setScriptMode(mode) {
   if (mode === 'step') {
     const speechId = firstSpeechAtTop();
     if (speechId === null) return;
+
     scriptMode = 'step';
     renderStepSpeech(speechId);
+
+    // Step preserves the logical speech, not Flow's old pixel position.
+    // Resetting the document scroll prevents mobile browsers from leaving
+    // the permanent mode control above the visible viewport.
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+    });
+
     return;
   }
 
@@ -941,6 +950,14 @@ function renderStepSpeech(speechId) {
   }
 
   updateTopHeight();
+
+  // Re-renders while already in Step (for example after changing character)
+  // should also remain anchored to the fixed Step viewport.
+  requestAnimationFrame(() => {
+    if (scriptMode === 'step') {
+      window.scrollTo(0, 0);
+    }
+  });
 }
 
 function renderBeatNavigation(beatId) {
