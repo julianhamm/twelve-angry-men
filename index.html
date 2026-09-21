@@ -256,14 +256,6 @@
     background: var(--chip);
   }
 
-  .script-head > .view-mode {
-    position: sticky;
-    top: var(--top-height, 110px);
-    z-index: 15;
-    margin: -4px 0 14px;
-    box-shadow: 0 4px 8px var(--bg);
-  }
-
   .mode-button {
     border: 0;
     background: transparent;
@@ -287,32 +279,43 @@
 
   body.step-active main {
     height: calc(100vh - var(--top-height, 110px));
-    padding-top: 10px;
+    padding-top: 0;
     padding-bottom: 10px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.step-active .mode-chrome {
+    position: relative;
+    top: auto;
+    flex: 0 0 auto;
   }
 
   .step-view {
-    height: 100%;
+    flex: 1 1 auto;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    min-height: 0;
   }
 
   .step-bar {
     flex: 0 0 auto;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 0 2px 10px;
+    padding: 10px 2px;
     border-bottom: 1px solid var(--line);
   }
 
-  .step-bar .view-mode {
-    position: static;
+  .mode-chrome {
+    position: sticky;
+    top: var(--top-height, 110px);
+    z-index: 18;
+    background: var(--bg);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .mode-chrome .view-mode {
     margin: 0;
-    flex: 0 0 auto;
-    box-shadow: none;
   }
 
   .step-meta {
@@ -803,13 +806,25 @@ function renderModeControl() {
   `;
 }
 
+function renderModeChrome() {
+  return `
+    <div class="mode-chrome">
+      ${renderModeControl()}
+    </div>
+  `;
+}
+
 function firstSpeechAtTop() {
   const speeches = [...app.querySelectorAll('.speech[data-speech-id]')];
   if (!speeches.length) return null;
 
-  const headerBottom = document.querySelector('.top').getBoundingClientRect().bottom;
+  const modeChrome = app.querySelector('.mode-chrome');
+  const contentTop = modeChrome
+    ? modeChrome.getBoundingClientRect().bottom
+    : document.querySelector('.top').getBoundingClientRect().bottom;
+
   const visible = speeches.find(speech =>
-    speech.getBoundingClientRect().bottom > headerBottom + 1
+    speech.getBoundingClientRect().bottom > contentTop + 1
   );
 
   return visible
@@ -874,10 +889,11 @@ function renderStepSpeech(speechId) {
       : `pp.${beat.start_page}–${beat.end_page}`;
 
   app.innerHTML = `
+    ${renderModeChrome()}
+
     <section class="step-view">
 
       <div class="step-bar">
-        ${renderModeControl()}
         <div class="step-meta">
           <strong>Beat ${beat.id}</strong>
           · ${escapeHTML(beat.title)}
@@ -978,8 +994,9 @@ function renderScript(beatId, focusSpeechId = null) {
   const speeches = speechesForBeat(beatId);
 
   app.innerHTML = `
+    ${renderModeChrome()}
+
     <section class="script-head">
-      ${renderModeControl()}
       <div class="beat-number">Beat ${beat.id}</div>
       <div class="beat-meta">${beatMeta(beat)}</div>
       <h2>${escapeHTML(beat.title)}</h2>
@@ -1008,7 +1025,18 @@ function renderScript(beatId, focusSpeechId = null) {
       const speech = app.querySelector(`[data-speech-id="${focusSpeechId}"]`);
       if (speech) {
         currentSpeech = focusSpeechId;
-        speech.scrollIntoView({ block: 'start', behavior: 'auto' });
+
+        const topHeader = document.querySelector('.top');
+        const modeChrome = app.querySelector('.mode-chrome');
+        const offset =
+          (topHeader ? topHeader.getBoundingClientRect().height : 0)
+          + (modeChrome ? modeChrome.getBoundingClientRect().height : 0)
+          + 8;
+
+        const targetY =
+          window.scrollY + speech.getBoundingClientRect().top - offset;
+
+        window.scrollTo(0, Math.max(0, targetY));
       }
     });
   }
