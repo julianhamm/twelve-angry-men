@@ -300,6 +300,7 @@
   body.step-active .mode-chrome {
     position: relative;
     top: auto;
+    margin-top: 0;
     flex: 0 0 auto;
   }
 
@@ -318,10 +319,11 @@
 
   .mode-chrome {
     position: sticky;
-    top: var(--top-height, 110px);
+    top: calc(var(--top-height, 110px) - 2px);
     z-index: 18;
     background: var(--bg);
-    padding: 8px 0;
+    padding: 10px 0 8px;
+    margin-top: -2px;
     border-bottom: 1px solid var(--line);
   }
 
