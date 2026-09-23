@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Twelve Angry Men</title>
+<title>Reasonable Doubt</title>
 
 <style>
   :root {
@@ -538,7 +538,7 @@
 
     <div class="title-row">
       <button id="back" class="back" aria-label="Back to beats">← Beats</button>
-      <h1>TWELVE ANGRY MEN</h1>
+      <h1>REASONABLE DOUBT</h1>
       <button id="characterInfo" class="character-info" aria-label="Character information">ⓘ</button>
     </div>
 
@@ -603,20 +603,6 @@ function escapeHTML(value) {
   })[c]);
 }
 
-function beatMeta(beat) {
-
-  const act =
-    beat.act === 1
-      ? 'Act One'
-      : 'Act Two';
-
-  const pages =
-    beat.start_page === beat.end_page
-      ? `Page ${beat.start_page}`
-      : `Pages ${beat.start_page}–${beat.end_page}`;
-
-  return `${act} · ${pages}`;
-}
 
 function renderChips() {
 
@@ -763,10 +749,6 @@ function renderBeats() {
             Beat ${beat.id}
           </div>
 
-          <div class="beat-meta">
-            ${beatMeta(beat)}
-          </div>
-
           <h2 class="beat-title">
             ${escapeHTML(beat.title)}
           </h2>
@@ -905,10 +887,6 @@ function renderStepSpeech(speechId) {
   const previous = speechById(speech.id - 1);
   const next = speechById(speech.id + 1);
 
-  const pages =
-    beat.start_page === beat.end_page
-      ? `p.${beat.start_page}`
-      : `pp.${beat.start_page}–${beat.end_page}`;
 
   app.innerHTML = `
     ${renderModeChrome()}
@@ -919,7 +897,6 @@ function renderStepSpeech(speechId) {
         <div class="step-meta">
           <strong>Beat ${beat.id}</strong>
           · ${escapeHTML(beat.title)}
-          · ${pages}
         </div>
       </div>
 
@@ -1028,7 +1005,6 @@ function renderScript(beatId, focusSpeechId = null) {
 
     <section class="script-head">
       <div class="beat-number">Beat ${beat.id}</div>
-      <div class="beat-meta">${beatMeta(beat)}</div>
       <h2>${escapeHTML(beat.title)}</h2>
       <p>${escapeHTML(beat.summary)}</p>
     </section>
